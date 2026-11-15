@@ -4,3 +4,4 @@ from .joint import joint_cuts
 from .information import partition_information
 from .decision import boundary_decision
 from .predictive import posterior_predictive
+from .covariance import pair_covariance

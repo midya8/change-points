@@ -9,6 +9,7 @@ from .information import partition_information
 from .joint import joint_cuts
 from .sampling import sample_posterior
 from .predictive import posterior_predictive
+from .covariance import pair_covariance
 
 
 MODEL_FIELDS=frozenset({
@@ -25,6 +26,7 @@ def build_parser():
     commands=parser.add_subparsers(dest='command',required=True)
     commands.add_parser('demo',help='run fixed shift and noise-misspecification examples')
     descriptions={
+        'covariance':'latent-mean and same-design replicate covariance for requested index pairs',
         'infer':'full evidence, marginal probabilities, MAP and latent-mean moments',
         'sample':'seeded complete-partition and conditional Gaussian mean draws',
         'joint':'joint inclusion and conditional probabilities for requested cut pairs',
@@ -40,6 +42,8 @@ def build_parser():
             command.add_argument('--seed',type=int,default=0,help='local RNG seed,0..2**32-1 (default:0)')
         elif name=='joint':
             command.add_argument('--pairs',required=True,help='JSON list of1..64 unique[a,b] interior gaps,1<=a<b<N; other cuts allowed')
+        elif name=='covariance':
+            command.add_argument('--pairs',required=True,help='JSON list of1..64 unique[i,j] design indices,0<=i<=j<N; diagonal is one replicate variance, not two draws')
         elif name=='predictive':
             command.add_argument('--queries',required=True,help='JSON list of1..64 unique[index,value] pairs; index0..N-1, value[-1e6,1e6]; not forecasts')
         elif name=='decide':
@@ -68,6 +72,8 @@ def dispatch(args):
         return joint_cuts(**model,pairs=json.loads(args.pairs))
     if args.command=='information':
         return partition_information(**model)
+    if args.command=='covariance':
+        return pair_covariance(**model,pairs=json.loads(args.pairs))
     if args.command=='predictive':
         return posterior_predictive(**model,queries=json.loads(args.queries))
     if args.command=='decide':

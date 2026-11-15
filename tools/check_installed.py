@@ -54,3 +54,42 @@ with tempfile.TemporaryDirectory() as d:
             dict(module_origins=9, full_reports=7, entrypoints=2, outside_checkout=True)
         )
     )
+    # Keep the original nine-origin and seven-report/two-entrypoint checks.
+    # The new report and the entire test suite also run from the installed wheel.
+    import shutil
+    shutil.copytree(root / 'examples', out / 'examples')
+    shutil.copytree(root / 'assets', out / 'assets')
+    job = ['covariance', 'examples/sequence.json', '--pairs', '[[0,0],[0,3]]']
+    expected = call([py, '-m', 'segmentlab'] + job, root)
+    absolute_job = [str(root / a) if a.startswith('examples/') else a for a in job]
+    assert call([py, '-m', 'segmentlab'] + absolute_job, out) == expected
+    assert call([str(t / 'env/bin/segmentlab')] + absolute_job, out) == expected
+    suite_code = """
+import importlib, importlib.util, pathlib, sys, unittest
+names = ['segmentlab','segmentlab.cli','segmentlab.core','segmentlab.decision',
+         'segmentlab.demo','segmentlab.information','segmentlab.joint',
+         'segmentlab.predictive','segmentlab.sampling','segmentlab.covariance']
+for name in names: importlib.import_module(name)
+def check():
+    assert all('site-packages' in importlib.util.find_spec(name).origin for name in names)
+check()
+sys.path.insert(0, str(pathlib.Path.cwd()))
+suite = unittest.defaultTestLoader.discover(sys.argv[1])
+assert unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful()
+check()
+print('Full installed test suite; 10 origins before and after')
+"""
+    print(call([py, '-I', '-c', suite_code, str(root / 'tests')], out))
+    for name in ['sample', 'joint', 'information', 'decision', 'predictive', 'covariance']:
+        source = call([sys.executable, str(root / 'examples' / (name + '_audit.py'))], root)
+        installed = call([py, '-I', str(out / 'examples' / (name + '_audit.py'))], out)
+        assert installed == source, name
+    source_demo = call([sys.executable, '-m', 'segmentlab', 'demo'], root)
+    installed_demo = call([py, '-I', '-m', 'segmentlab', 'demo'], out)
+    assert installed_demo == source_demo
+    (out / 'demo.json').write_text(installed_demo)
+    sample_report = call([py, '-I', str(out / 'examples' / 'sample_audit.py')], out)
+    (out / 'sample.json').write_text(sample_report)
+    call([py, '-I', str(out / 'examples' / 'render_demo.py'), str(out / 'demo.json'), '--check'], out)
+    call([py, '-I', str(out / 'examples' / 'render_samples.py'), str(out / 'sample.json'), '--check'], out)
+    print('Complete demo and six feature audit reports, both figures reproduced from the installed wheel')

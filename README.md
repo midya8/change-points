@@ -25,6 +25,7 @@ python -m segmentlab joint examples/sequence.json --pairs '[[1,3],[2,4]]'
 python -m segmentlab information examples/sequence.json
 python -m segmentlab decide examples/sequence.json --false-cut-cost 1 --missed-cut-cost 1
 python -m segmentlab predictive examples/sequence.json --queries '[[2,0.0],[3,1.0]]'
+python -m segmentlab envelope examples/sequence.json --lower '[-2,-2,-2,-2,-2,-2]' --upper '[2,2,2,2,2,2]'
 python -m segmentlab covariance examples/sequence.json --pairs '[[0,0],[0,3],[3,3]]'
 ```
 
@@ -57,6 +58,7 @@ Every model command reads exactly these seven fields, with no extra keys:
 | `sample` / `sample_posterior` | Seeded complete partitions and conditional Gaussian segment means | No MCMC or credible-band/calibration claim; zero visits do not imply zero mass |
 | `joint` / `joint_cuts` | Joint inclusion and both conditional directions for requested cut pairs | Other cuts remain allowed; pairwise summaries do not determine the full law |
 | `information` / `partition_information` | Full partition/count entropy, conditioned-prior KL, binary-cut entropy gap | Lower entropy or higher KL does not prove a correct model |
+| `envelope` / `latent_envelope` | Joint probability a supplied latent-path envelope contains every index; segment-count law conditional on that event | Not multiplied marginals, replicate bands, forecasts or real-data coverage |
 | `covariance` / `pair_covariance` | Latent-mean and same-design replicate covariance across index pairs | Not same-segment probability, independence tests or forecasts |
 | `predictive` / `posterior_predictive` | Same-design replicate mixture density, CDF/survival and 5/50/95% quantiles | Not forecasts, leave-one-out scores, anomaly p-values or simultaneous bands |
 | `decide` / `boundary_decision` | Admissible minimum expected false/missed boundary loss; MAP/threshold comparisons | A supplied-loss optimum is not observed real-world accuracy |
@@ -86,6 +88,23 @@ These are selected development examples, not held-out performance, event detecti
 
 `covariance` retains uncertainty over complete partitions and their Gaussian segment means. In a fixed four-point shift, indices 1 and 2 have a 0.0629123 chance of sharing a segment, yet their latent covariance is -0.0460892. Partition uncertainty can move their conditional means in opposite directions. The audit keeps all ten index pairs and a forced-one-segment comparison; the central pair was selected after inspecting the table. Independent replicate noise adds variance only on the diagonal. [Recurrence, validation and limits](COVARIANCE.md).
 
+## A whole-path envelope is one joint event
+
+`envelope` evaluates supplied lower/upper bounds for every latent index. A
+segment has one shared mean, so its allowed set is the intersection of all
+index intervals it covers. The recurrence multiplies independent Gaussian
+segment probabilities within each partition, then mixes over partitions.
+It does not multiply pointwise marginal probabilities.
+
+For four zeros forced into one segment, bounds [-.5,.5] at every index have
+joint posterior probability .955243142, while the product of the four
+marginals is .832637014. With two zeros, disjoint index intervals [-1,-.1]
+and [.1,1] require a cut: the event has probability .003123780 and its
+conditional segment count is two with probability one. Forcing one segment
+makes that same event have probability zero. These are fixed model-conditional
+examples, not measured coverage. [Recurrence, numerical zeros and full retained
+comparisons](ENVELOPE.md).
+
 ## Complete paths versus marginal averages
 
 ![Joint posterior draw audit](assets/joint-draw-audit.svg)
@@ -104,9 +123,10 @@ python examples/information_audit.py > /tmp/information-audit.json
 python examples/decision_audit.py > /tmp/decision-audit.json
 python examples/predictive_audit.py > /tmp/predictive-audit.json
 python examples/covariance_audit.py > /tmp/covariance-audit.json
+python examples/envelope_audit.py > /tmp/envelope-audit.json
 ```
 
-**112 tests.** Independent tiny exhaustive partition references check evidence, marginals, MAP, variance, sampler path probabilities, joint queries, entropy/KL and decision risk. Other tests cover sequential conjugate evidence, offsets/extremes, strict inputs, RNG/input isolation, work counts, predictive mixture densities/tails/quantiles, centered pair covariance against 20 seeded exhaustive models, CLI contracts and SVG geometry/regeneration. CI runs Python 3.10..3.13 plus both figure checks. [Detailed validation and limits](DESIGN.md#validation-and-limits).
+**122 tests.** Independent tiny exhaustive partition references check evidence, marginals, MAP, variance, sampler path probabilities, joint queries, entropy/KL and decision risk. Other tests cover sequential conjugate evidence, offsets/extremes, strict inputs, RNG/input isolation, work counts, predictive mixture densities/tails/quantiles, centered pair covariance against 20 seeded exhaustive models, CLI contracts and SVG geometry/regeneration. CI runs Python 3.10..3.13 plus both figure checks. [Detailed validation and limits](DESIGN.md#validation-and-limits).
 
 Inputs are bounded: 1..120 observations and prior mean in [-1e6,1e6], noise/prior std in [1e-4,1e4], p in [1e-6,1-1e-6], integer minimum length 1..N and requested cap 1..12. Exact means finite-partition sums **in floating point**, not symbolic arithmetic: negligible mass can underflow, near ties can move and numerical guards are not formal certificates. Full marginal inference costs `O(N²*K²)`; feature-specific costs and output bounds are in the reference. No streaming alerts, forecasts, learned hyperparameters, credible-band coverage or model-misspecification guarantee.
 
@@ -122,4 +142,9 @@ Inputs are bounded: 1..120 observations and prior mean in [-1e6,1e6], noise/prio
 Independent implementation inspired by [Fearnhead, Exact and Efficient Bayesian Inference for Multiple Changepoint Problems](https://people.csail.mit.edu/siracusa/papers/fearnhead06.pdf). This uses its own explicitly conditioned prior and capped recurrences, not copied code, paper experiments, pruning or a reproduction of the paper's sampling algorithm. [Attribution details](DESIGN.md#sources-and-attribution). MIT licensed.
 - [Same-design replicate predictive mixtures](DESIGN.md#same-design-replicate-predictive-mixtures)
 
-Pair covariance has its own [reference and limits](COVARIANCE.md). The package check runs all 112 tests from the installed wheel, verifies ten module origins, preserves the original seven-report/two-entrypoint checks and reproduces the complete demo, all six feature audits and both figures outside the source checkout.
+Pair covariance has its own [reference and limits](COVARIANCE.md). The package check runs all 122 tests from the installed wheel, verifies eleven module origins, preserves the original seven-report/two-entrypoint checks and reproduces the complete demo, all seven feature audits and both figures outside the source checkout.
+
+The envelope tests add a separate exhaustive gap-bitset oracle with sequential
+conjugate likelihoods and adaptive Simpson Gaussian integration, rather than
+using the production interval scores, CDF calls or recurrence. The installed
+check also compares the full envelope CLI report through both entrypoints.

@@ -10,6 +10,7 @@ from .joint import joint_cuts
 from .sampling import sample_posterior
 from .predictive import posterior_predictive
 from .covariance import pair_covariance
+from .envelope import latent_envelope
 
 
 MODEL_FIELDS=frozenset({
@@ -26,6 +27,7 @@ def build_parser():
     commands=parser.add_subparsers(dest='command',required=True)
     commands.add_parser('demo',help='run fixed shift and noise-misspecification examples')
     descriptions={
+        'envelope':'joint supplied latent-path envelope probability, not multiplied marginal coverage',
         'covariance':'latent-mean and same-design replicate covariance for requested index pairs',
         'infer':'full evidence, marginal probabilities, MAP and latent-mean moments',
         'sample':'seeded complete-partition and conditional Gaussian mean draws',
@@ -37,7 +39,10 @@ def build_parser():
     for name,description in descriptions.items():
         command=commands.add_parser(name,help=description,description=description)
         command.add_argument('input',help='JSON file with exactly: '+', '.join(sorted(MODEL_FIELDS)))
-        if name=='sample':
+        if name=='envelope':
+            command.add_argument('--lower',required=True,help='JSON length-N lower bounds in[-1e6,1e6]')
+            command.add_argument('--upper',required=True,help='JSON length-N upper bounds, lower<=upper')
+        elif name=='sample':
             command.add_argument('--draws',type=int,default=100,help='number of draws,1..10000 (default:100)')
             command.add_argument('--seed',type=int,default=0,help='local RNG seed,0..2**32-1 (default:0)')
         elif name=='joint':
@@ -64,6 +69,8 @@ def dispatch(args):
     if args.command=='demo':
         return demo()
     model=load_model(args.input)
+    if args.command=='envelope':
+        return latent_envelope(**model,lower=json.loads(args.lower),upper=json.loads(args.upper))
     if args.command=='infer':
         return infer(**model)
     if args.command=='sample':

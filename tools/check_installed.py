@@ -68,7 +68,7 @@ with tempfile.TemporaryDirectory() as d:
 import importlib, importlib.util, pathlib, sys, unittest
 names = ['segmentlab','segmentlab.cli','segmentlab.core','segmentlab.decision',
          'segmentlab.demo','segmentlab.information','segmentlab.joint',
-         'segmentlab.predictive','segmentlab.sampling','segmentlab.covariance']
+         'segmentlab.predictive','segmentlab.sampling','segmentlab.covariance','segmentlab.envelope']
 for name in names: importlib.import_module(name)
 def check():
     assert all('site-packages' in importlib.util.find_spec(name).origin for name in names)
@@ -77,10 +77,10 @@ sys.path.insert(0, str(pathlib.Path.cwd()))
 suite = unittest.defaultTestLoader.discover(sys.argv[1])
 assert unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful()
 check()
-print('Full installed test suite; 10 origins before and after')
+print('Full installed test suite; 11 origins before and after')
 """
     print(call([py, '-I', '-c', suite_code, str(root / 'tests')], out))
-    for name in ['sample', 'joint', 'information', 'decision', 'predictive', 'covariance']:
+    for name in ['sample', 'joint', 'information', 'decision', 'predictive', 'covariance', 'envelope']:
         source = call([sys.executable, str(root / 'examples' / (name + '_audit.py'))], root)
         installed = call([py, '-I', str(out / 'examples' / (name + '_audit.py'))], out)
         assert installed == source, name
@@ -92,4 +92,11 @@ print('Full installed test suite; 10 origins before and after')
     (out / 'sample.json').write_text(sample_report)
     call([py, '-I', str(out / 'examples' / 'render_demo.py'), str(out / 'demo.json'), '--check'], out)
     call([py, '-I', str(out / 'examples' / 'render_samples.py'), str(out / 'sample.json'), '--check'], out)
-    print('Complete demo and six feature audit reports, both figures reproduced from the installed wheel')
+    print('Complete demo and seven feature audit reports, both figures reproduced from the installed wheel')
+
+    envelope_job = ['envelope', 'examples/sequence.json', '--lower', '[-2,-2,-2,-2,-2,-2]', '--upper', '[2,2,2,2,2,2]']
+    expected = call([py, '-m', 'segmentlab'] + envelope_job, root)
+    absolute_job = [str(root / a) if a.startswith('examples/') else a for a in envelope_job]
+    assert call([py, '-m', 'segmentlab'] + absolute_job, out) == expected
+    assert call([str(t / 'env/bin/segmentlab')] + absolute_job, out) == expected
+    print('Complete envelope CLI report matches both installed entrypoints')

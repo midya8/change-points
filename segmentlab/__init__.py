@@ -5,3 +5,4 @@ from .information import partition_information
 from .decision import boundary_decision
 from .predictive import posterior_predictive
 from .covariance import pair_covariance
+from .envelope import latent_envelope

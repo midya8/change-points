@@ -1,6 +1,6 @@
 # Change points
 
-SegmentLab infers partitions of a supplied sequence under a Bayesian Gaussian
+This implementation infers partitions of a supplied sequence under a Bayesian Gaussian
 changepoint model. Inspect the partition law, draw complete partitions and
 choose boundaries under an explicit loss. A confident posterior can still be
 wrong when the supplied noise model is wrong.

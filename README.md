@@ -1,4 +1,4 @@
-# SegmentLab
+# Change points
 
 SegmentLab infers partitions of a supplied sequence under a Bayesian Gaussian
 changepoint model. Inspect the partition law, draw complete partitions and
@@ -10,6 +10,9 @@ Python 3.10+, no runtime dependencies, local data only, no paid API or GPU.
 The same isolated outlier is assigned a high-probability two-cut segment under a low supplied noise scale. That is model confidence, not evidence that an event occurred.
 
 ![Noise-assumption failure and known shifts](assets/partition-audit.svg)
+
+The repository is now `change-points`. The Python import and CLI names stay
+`segmentlab` for compatibility with existing scripts.
 
 ## Run it
 
